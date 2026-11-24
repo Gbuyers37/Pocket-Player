@@ -447,7 +447,7 @@ async function playAt(i,t0=0,autoplay=true){
  if(seq!==loadSeq)return;
  if(!blob){toast('That file is missing');return}
  if(P.url)URL.revokeObjectURL(P.url);
- P.url=URL.createObjectURL(blob);audio.src=P.url;
+ P.url=URL.createObjectURL(blob);audio.src=P.url;regHandlers();
  if(t0>1)audio.addEventListener('loadedmetadata',()=>{try{audio.currentTime=t0}catch(e){}},{once:true});
  P.resume=0;save();setMeta();ui();render();
  if(autoplay){try{await audio.play()}catch(e){ui()}}
@@ -498,17 +498,19 @@ function posState(){
  const d=audio.duration;if(!isFinite(d)||d<=0)return;
  try{ms.setPositionState({duration:d,playbackRate:audio.playbackRate||1,position:Math.min(audio.currentTime,d)})}catch(e){}
 }
-if(ms){
+// iOS greys out lock-screen buttons unless handlers are (re)registered after playback starts,
+// so this runs on load, on every play, and on every track change.
+function regHandlers(){
+ if(!ms)return;
  const h=(a,f)=>{try{ms.setActionHandler(a,f)}catch(e){}};
  h('play',()=>{if(!P.url)playAt(P.qi,P.resume);else audio.play().catch(()=>{})});
  h('pause',()=>audio.pause());
- h('previoustrack',prev);   // AirPods triple-tap, lock screen ⏮
- h('nexttrack',()=>next(false)); // AirPods double-tap, lock screen ⏭
+ h('previoustrack',()=>prev());      // AirPods triple-tap, lock screen back
+ h('nexttrack',()=>next(false));     // AirPods double-tap, lock screen forward
  h('seekto',d=>{if(d&&isFinite(d.seekTime)){audio.currentTime=d.seekTime;posState()}});
- h('seekbackward',null);h('seekforward',null); // leaving these unset makes iOS show skip-track buttons
  h('stop',()=>audio.pause());
 }
-
+regHandlers();
 let dragging=false,lastSave=0;
 function ui(){
  const t=cur();const has=!!t;
@@ -536,11 +538,12 @@ function progress(){
  if(!dragging){$('#seek').value=pct*10;$('#seek').style.setProperty('--p',pct+'%');$('#tCur').textContent=fmt(c)}
  $('#tDur').textContent=dur?'-'+fmt(dur-c):'0:00';
 }
-audio.addEventListener('play',()=>{ui();render()});
+audio.addEventListener('play',()=>{regHandlers();setMeta();posState();ui();render()});
+audio.addEventListener('playing',()=>{regHandlers();posState()});
 audio.addEventListener('pause',()=>{ui();render()});
 audio.addEventListener('ended',()=>next(true));
 audio.addEventListener('loadedmetadata',()=>{
- posState();const t=cur();
+ setMeta();posState();const t=cur();
  if(t&&P.url&&isFinite(audio.duration)&&Math.abs((t.dur||0)-audio.duration)>1){t.dur=audio.duration;put('meta',t).catch(()=>{});render()}
  progress();
 });
@@ -589,6 +592,7 @@ document.addEventListener('keydown',e=>{
  ui();render();
  if(tracks.some(t=>!t.dur))probeDurations();
 })();
+document.addEventListener('visibilitychange',()=>{regHandlers();setMeta();posState()});
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 </script>
