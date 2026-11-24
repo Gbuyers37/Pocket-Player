@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pocket">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Pocket Player</title>
+<style>
+/* Liquid-glass offline music player. Black ground, frosted translucent panels, pill + circle controls. */
+:root{--ink:#fff;--dim:rgba(255,255,255,.55);--line:rgba(255,255,255,.15);--g:rgba(255,255,255,.08);--g2:rgba(255,255,255,.18);--acc:#5aa9ff;--red:#ff5a5f;--st:env(safe-area-inset-top);--sb:env(safe-area-inset-bottom)}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;background:#000;color:var(--ink);font:16px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+body{min-height:100dvh;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.f{fill:currentColor;stroke:none}
+.glass{background:var(--g);-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -1px 0 rgba(255,255,255,.05),0 14px 34px rgba(0,0,0,.6)}
+.glow{position:fixed;inset:0;pointer-events:none;background:radial-gradient(45vmax 32vmax at 10% 5%,rgba(130,90,255,.20),transparent 70%),radial-gradient(45vmax 32vmax at 95% 75%,rgba(0,150,255,.15),transparent 70%)}
+main{position:relative;padding:calc(var(--st) + 12px) 16px calc(var(--sb) + 110px);max-width:760px;margin:0 auto}
+body.hasmini main{padding-bottom:calc(var(--sb) + 190px)}
+.top{display:flex;align-items:center;gap:10px;margin:6px 0 12px}
+h1{flex:1;margin:0;font-size:34px;line-height:1.1;font-weight:800;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.circ{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;flex:none}
+.searchrow{display:flex;gap:10px;margin-bottom:12px}
+.search{flex:1;display:flex;align-items:center;gap:10px;height:52px;border-radius:26px;padding:0 14px 0 16px;color:var(--dim)}
+.search input{flex:1;height:100%;background:none;border:0;outline:0;color:var(--ink);font-size:17px;-webkit-appearance:none}
+.search input::-webkit-search-cancel-button{display:none}
+.pill{height:52px;border-radius:26px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;white-space:nowrap}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.acts .pill{height:48px;color:var(--acc)}
+.list{list-style:none;margin:0;padding:0}
+.row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer}
+.row:active{opacity:.6}
+.tile{width:50px;height:50px;border-radius:10px;background:#ececee;color:#c4c4c8;display:grid;place-items:center;flex:none}
+.tile .i{width:26px;height:26px}
+.tile.live,.row.cur .tile{background:linear-gradient(145deg,#6d5cff,#2f8dff);color:#fff}
+.txt{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.txt b,.txt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.txt b{font-weight:600;font-size:16px}
+.row.cur .txt b{color:var(--acc)}
+.txt span{color:var(--dim);font-size:14px}
+.more{width:44px;height:44px;display:grid;place-items:center;color:var(--dim);flex:none}
+.eq{display:flex;gap:3px;align-items:flex-end;height:20px}
+.eq i{width:4px;background:#fff;border-radius:2px;height:40%}
+.playing-now .eq i{animation:eq .9s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:-.3s!important}.eq i:nth-child(3){animation-delay:-.6s!important}
+@keyframes eq{0%,100%{height:30%}50%{height:100%}}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.card{border-radius:24px;padding:16px;min-height:120px;display:flex;flex-direction:column;justify-content:space-between;text-align:left}
+.card .i{width:30px;height:30px;color:var(--acc)}
+.card b{font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.card span{color:var(--dim);font-size:14px}
+.card.new{border-style:dashed;color:var(--dim);background:transparent;box-shadow:none}
+.empty{text-align:center;color:var(--dim);padding:60px 20px}
+.empty b{display:block;color:var(--ink);font-size:20px;margin-bottom:6px}
+.empty .pill{margin-top:18px;color:var(--acc)}
+.foot{text-align:center;color:rgba(255,255,255,.35);font-size:13px;margin:22px 0 0}
+/* bottom bar */
+.tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--sb) + 10px);width:min(320px,calc(100% - 64px));height:64px;border-radius:32px;display:grid;grid-template-columns:1fr 1fr;padding:5px;z-index:20}
+.tab{border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;font-weight:600;gap:2px;color:rgba(255,255,255,.85)}
+.tab.on{background:rgba(255,255,255,.14);color:var(--acc);box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
+.mini{position:fixed;left:12px;right:12px;max-width:736px;margin:0 auto;bottom:calc(var(--sb) + 84px);height:66px;border-radius:33px;display:flex;align-items:center;gap:10px;padding:0 8px 0 8px;z-index:20}
+.mini .tile{width:50px;height:50px;border-radius:25px}
+.mini .txt{cursor:pointer}
+.mini button.c{width:44px;height:44px;display:grid;place-items:center}
+.mini .prog{position:absolute;left:28px;right:28px;bottom:3px;height:2px;border-radius:1px;background:rgba(255,255,255,.12);overflow:hidden}
+.mini .prog i{display:block;height:100%;width:0;background:rgba(255,255,255,.7)}
+/* now playing */
+#np{position:fixed;inset:0;z-index:40;background:#000;transform:translateY(100%);transition:transform .38s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;padding:calc(var(--st) + 12px) 20px calc(var(--sb) + 24px);overflow:hidden}
+#np.open{transform:none}
+#np .glow{position:absolute}
+.nptop{position:relative;display:flex;align-items:center;gap:10px}
+.nptop .ttl{flex:1;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0 16px;font-weight:700;font-size:17px;overflow:hidden}
+.nptop .ttl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stage{position:relative;flex:1;display:grid;place-items:center;min-height:220px}
+.wave{width:min(78vw,340px);height:auto;transform-origin:center;color:#8e8e93}
+#np.playing .wave{animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{transform:scaleY(.78)}}
+.bigpp{position:absolute;width:104px;height:104px;border-radius:50%;display:grid;place-items:center;background:rgba(40,40,44,.55)}
+.bigpp .i{width:40px;height:40px}
+.meta{position:relative;text-align:center;margin-bottom:18px}
+.meta b{display:block;font-size:24px;font-weight:800;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta span{color:var(--dim);font-size:17px}
+.scrub{position:relative;height:58px;border-radius:29px;padding:0 20px;display:flex;align-items:center;gap:12px;font-variant-numeric:tabular-nums;font-size:13px;color:var(--dim)}
+input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:30px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(90deg,#fff var(--p,0%),rgba(255,255,255,.18) var(--p,0%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;margin-top:-6px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:rgba(255,255,255,.18)}
+input[type=range]::-moz-range-progress{height:6px;border-radius:3px;background:#fff}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border:0;border-radius:50%;background:#fff}
+.ctrls{position:relative;display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding:0 4px}
+.ctrls .c{width:56px;height:56px;border-radius:50%;display:grid;place-items:center}
+.ctrls .c .i{width:30px;height:30px}
+.ctrls .sm{width:48px;height:48px;color:var(--dim)}
+.ctrls .sm .i{width:22px;height:22px}
+.ctrls .sm.on{color:var(--acc)}
+.ctrls .pp2{width:76px;height:76px}
+.ctrls .pp2 .i{width:34px;height:34px}
+/* sheet + modal */
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;opacity:0;pointer-events:none;transition:opacity .25s}
+#scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:10px;right:10px;max-width:520px;margin:0 auto;bottom:calc(var(--sb) + 10px);border-radius:30px;padding:8px;z-index:70;transform:translateY(130%);transition:transform .3s cubic-bezier(.2,.8,.2,1);background:rgba(36,36,40,.72)}
+.sheet.on{transform:none}
+.sheet h3{margin:10px 16px 6px;font-size:14px;color:var(--dim);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet .it{display:flex;align-items:center;gap:14px;width:100%;height:54px;padding:0 16px;border-radius:22px;font-size:17px;text-align:left}
+.sheet .it:active{background:rgba(255,255,255,.1)}
+.sheet .it.danger{color:var(--red)}
+.sheet .it.x{justify-content:center;font-weight:600;margin-top:4px;background:rgba(255,255,255,.08)}
+.sheet .scrollable{max-height:52vh;overflow:auto}
+.modal{position:fixed;left:50%;top:38%;width:min(340px,calc(100% - 40px));transform:translate(-50%,-50%) scale(.9);opacity:0;pointer-events:none;z-index:80;border-radius:28px;padding:22px 18px 14px;background:rgba(36,36,40,.82);transition:.2s}
+.modal.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+.modal h3{margin:0 0 6px;font-size:18px;text-align:center}
+.modal p{margin:0 0 12px;color:var(--dim);text-align:center;font-size:15px}
+.modal input{width:100%;height:48px;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:#fff;font-size:16px;padding:0 14px;outline:0;margin-bottom:12px;-webkit-user-select:text;user-select:text}
+.mbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mbtns button{height:48px;border-radius:24px;background:rgba(255,255,255,.1);font-weight:600}
+.mbtns #mOk{background:var(--acc);color:#001a33}
+.mbtns #mOk.danger{background:var(--red);color:#fff}
+#toast{position:fixed;left:50%;top:calc(var(--st) + 14px);transform:translate(-50%,-150%);z-index:90;padding:12px 20px;border-radius:24px;font-size:15px;font-weight:600;transition:transform .3s;max-width:calc(100% - 40px);text-align:center}
+#toast.on{transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+ <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+ <symbol id="i-play" viewBox="0 0 24 24"><path class="f" d="M7 4.2c0-.8.9-1.3 1.6-.9l11.6 7.8c.6.4.6 1.4 0 1.8L8.6 20.7c-.7.4-1.6-.1-1.6-.9z"/></symbol>
+ <symbol id="i-pause" viewBox="0 0 24 24"><rect class="f" x="5.5" y="4" width="4.5" height="16" rx="1.4"/><rect class="f" x="14" y="4" width="4.5" height="16" rx="1.4"/></symbol>
+ <symbol id="i-prev" viewBox="0 0 24 24"><rect class="f" x="3.5" y="5" width="2.6" height="14" rx="1"/><path class="f" d="M20.5 6.1v11.8c0 .8-.9 1.3-1.6.8l-9-5.9a1 1 0 0 1 0-1.6l9-5.9c.7-.5 1.6 0 1.6.8z"/></symbol>
+ <symbol id="i-next" viewBox="0 0 24 24"><rect class="f" x="17.9" y="5" width="2.6" height="14" rx="1"/><path class="f" d="M3.5 6.1v11.8c0 .8.9 1.3 1.6.8l9-5.9a1 1 0 0 0 0-1.6l-9-5.9c-.7-.5-1.6 0-1.6.8z"/></symbol>
+ <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+ <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol>
+ <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+ <symbol id="i-more" viewBox="0 0 24 24"><circle class="f" cx="5" cy="12" r="1.8"/><circle class="f" cx="12" cy="12" r="1.8"/><circle class="f" cx="19" cy="12" r="1.8"/></symbol>
+ <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+ <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+ <symbol id="i-down" viewBox="0 0 24 24"><path d="M5 9l7 7 7-7"/></symbol>
+ <symbol id="i-shuf" viewBox="0 0 24 24"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></symbol>
+ <symbol id="i-rep" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></symbol>
+ <symbol id="i-rep1" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/><path d="M11 10.5l1.5-1v5"/></symbol>
+ <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></symbol>
+ <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+ <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20l4-1L19 8l-3-3L5 16z"/></symbol>
+ <symbol id="i-next2" viewBox="0 0 24 24"><path d="M4 6h11M4 12h11M4 18h7M17 14v8M13 18h8"/></symbol>
+</svg>
+<div class="glow"></div>
+
+<main>
+ <div class="top">
+  <button id="back" class="circ glass" aria-label="Back" hidden><svg class="i"><use href="#i-left"/></svg></button>
+  <h1 id="title">Songs</h1>
+  <button id="fmenu" class="circ glass" aria-label="Folder options" hidden><svg class="i"><use href="#i-more"/></svg></button>
+  <button id="add" class="circ glass" aria-label="Import songs"><svg class="i"><use href="#i-plus"/></svg></button>
+ </div>
+ <div class="searchrow">
+  <div class="search glass"><svg class="i"><use href="#i-search"/></svg><input id="q" type="search" placeholder="Search" autocomplete="off" autocorrect="off" spellcheck="false"><button id="qx" aria-label="Clear" hidden><svg class="i" style="width:18px;height:18px"><use href="#i-x"/></svg></button></div>
+  <button id="sortb" class="pill glass" aria-label="Sort order"><svg class="i" style="width:18px;height:18px"><use href="#i-sort"/></svg><span id="sortl">A–Z</span></button>
+ </div>
+ <div id="acts" class="acts">
+  <button id="playall" class="pill glass"><svg class="i" style="width:20px;height:20px"><use href="#i-play"/></svg>Play</button>
+  <button id="shufall" class="pill glass"><svg class="i" style="width:20px;height:20px"><use href="#i-shuf"/></svg>Shuffle</button>
+ </div>
+ <ul id="songs" class="list"></ul>
+ <div id="folders" class="grid" hidden></div>
+ <div id="empty" class="empty" hidden><b id="emptyT">No songs yet</b><span id="emptyS">Import MP3, M4A, WAV, MP4 and more from the Files app.</span><br><button id="emptyAdd" class="pill glass"><svg class="i"><use href="#i-plus"/></svg>Import songs</button></div>
+ <p id="foot" class="foot"></p>
+</main>
+
+<input id="file" type="file" multiple hidden accept="audio/*,video/*,.mp3,.m4a,.m4b,.aac,.wav,.aif,.aiff,.caf,.flac,.alac,.ogg,.opus,.mp4,.m4v,.mov,.webm,.3gp">
+
+<div id="mini" class="mini glass" hidden>
+ <div class="tile" id="mTile"><svg class="i"><use href="#i-note"/></svg></div>
+ <div class="txt" id="mOpen"><b id="mT"></b><span id="mA"></span></div>
+ <button class="c" id="mPrev" aria-label="Previous"><svg class="i"><use href="#i-prev"/></svg></button>
+ <button class="c pp" id="mPP" aria-label="Play or pause"><svg class="i" style="width:28px;height:28px"><use href="#i-play"/></svg></button>
+ <button class="c" id="mNext" aria-label="Next"><svg class="i"><use href="#i-next"/></svg></button>
+ <div class="prog"><i id="mBar"></i></div>
+</div>
+
+<nav class="tabs glass">
+ <button class="tab" data-tab="songs"><svg class="i"><use href="#i-note"/></svg>Songs</button>
+ <button class="tab" data-tab="folders"><svg class="i"><use href="#i-folder"/></svg>Folders</button>
+</nav>
+
+<section id="np" aria-label="Now playing">
+ <div class="glow"></div>
+ <div class="nptop">
+  <button id="npX" class="circ glass" aria-label="Close"><svg class="i"><use href="#i-down"/></svg></button>
+  <div class="ttl glass"><span id="npHead"></span></div>
+  <button id="npMore" class="circ glass" aria-label="Song options"><svg class="i"><use href="#i-more"/></svg></button>
+ </div>
+ <div class="stage">
+  <svg class="wave" viewBox="0 0 320 300" aria-hidden="true"><polyline points="16,150 56,150 70,100 92,214 112,60 134,250 160,16 186,250 208,60 228,214 250,100 264,150 304,150" fill="none" stroke="currentColor" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <button id="bigPP" class="bigpp glass pp" aria-label="Play or pause"><svg class="i"><use href="#i-play"/></svg></button>
+ </div>
+ <div class="meta"><b id="nT"></b><span id="nA"></span></div>
+ <div class="scrub glass"><span id="tCur">0:00</span><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Seek"><span id="tDur">0:00</span></div>
+ <div class="ctrls">
+  <button id="shuf" class="c sm" aria-label="Shuffle"><svg class="i"><use href="#i-shuf"/></svg></button>
+  <button id="nPrev" class="c glass" aria-label="Previous"><svg class="i"><use href="#i-prev"/></svg></button>
+  <button id="nPP" class="c pp2 glass pp" aria-label="Play or pause"><svg class="i"><use href="#i-play"/></svg></button>
+  <button id="nNext" class="c glass" aria-label="Next"><svg class="i"><use href="#i-next"/></svg></button>
+  <button id="rep" class="c sm" aria-label="Repeat"><svg class="i"><use href="#i-rep"/></svg></button>
+ </div>
+</section>
+
+<div id="scrim"></div>
+<div id="sheet" class="sheet glass" role="dialog"><h3 id="sheetT"></h3><div id="sheetB" class="scrollable"></div><button class="it x" id="sheetX">Cancel</button></div>
+<div id="modal" class="modal glass" role="dialog"><h3 id="moT"></h3><p id="moP"></p><input id="moIn" autocomplete="off"><div class="mbtns"><button id="mNo">Cancel</button><button id="mOk">OK</button></div></div>
+<div id="toast" class="glass"></div>
+<audio id="audio" preload="auto" playsinline></audio>
+
+<script>
+{
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>(self.crypto&&crypto.randomUUID)?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+const coll=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});
+const fmt=s=>{if(!isFinite(s)||s<0)s=0;s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const size=b=>b>=1e9?(b/1e9).toFixed(1)+' GB':(b/1e6).toFixed(0)+' MB';
+const parse=n=>{const i=n.indexOf(' - ');return i>0?{artist:n.slice(0,i).trim(),title:n.slice(i+3).trim()}:{artist:'',title:n}};
+const extOf=n=>((n||'').match(/\.([a-z0-9]+)$/i)||[,''])[1].toLowerCase();
+const TYPES={mp3:'audio/mpeg',m4a:'audio/mp4',m4b:'audio/mp4',aac:'audio/aac',wav:'audio/wav',aif:'audio/aiff',aiff:'audio/aiff',caf:'audio/x-caf',flac:'audio/flac',ogg:'audio/ogg',opus:'audio/ogg',mp4:'video/mp4',m4v:'video/mp4',mov:'video/quicktime',webm:'audio/webm','3gp':'video/3gpp'};
+const LS={get(k,d){try{const v=localStorage.getItem('pp.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('pp.'+k,JSON.stringify(v))}catch(e){}}};
+const SORTS={name:'A–Z',title:'Title',recent:'Recent'};
+const ORDER=['name','title','recent'];
+
+let db=null,tracks=[],folders=[];
+const view={tab:LS.get('tab','songs'),folder:null,q:''};
+let sort=LS.get('sort','name');
+const P={queue:[],base:[],qi:-1,shuffle:LS.get('shuffle',false),repeat:LS.get('repeat','off'),url:null,resume:0};
+const audio=$('#audio');
+const ms='mediaSession' in navigator?navigator.mediaSession:null;
+
+/* ---------- storage ---------- */
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open('pocket-player',1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('meta',{keyPath:'id'});d.createObjectStore('blobs');d.createObjectStore('folders',{keyPath:'id'})};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function tx(stores,mode,fn){return new Promise((res,rej)=>{const t=db.transaction(stores,mode);let out;const r=fn(t);if(r)r.onsuccess=()=>{out=r.result};t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
+const getAll=st=>tx(st,'readonly',t=>t.objectStore(st).getAll());
+const put=(st,v)=>tx(st,'readwrite',t=>t.objectStore(st).put(v));
+const getBlob=id=>tx('blobs','readonly',t=>t.objectStore('blobs').get(id));
+
+/* ---------- ui helpers ---------- */
+let toastT;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200)}
+function closeSheet(){$('#sheet').classList.remove('on');$('#scrim').classList.remove('on')}
+function sheet(title,items){
+ $('#sheetT').textContent=title;
+ $('#sheetB').innerHTML=items.map((it,i)=>`<button class="it${it.danger?' danger':''}" data-i="${i}">${it.icon?`<svg class="i"><use href="#${it.icon}"/></svg>`:''}<span>${esc(it.label)}</span></button>`).join('');
+ $('#sheetB').onclick=e=>{const b=e.target.closest('[data-i]');if(!b)return;closeSheet();setTimeout(()=>items[+b.dataset.i].fn(),180)};
+ $('#scrim').classList.add('on');$('#sheet').classList.add('on');
+}
+let modalDone=null;
+function modal(title,msg,{input=null,ok='OK',danger=false}={}){
+ return new Promise(res=>{
+  $('#moT').textContent=title;$('#moP').textContent=msg||'';$('#moP').hidden=!msg;
+  const inp=$('#moIn');inp.hidden=input===null;inp.value=input||'';
+  const okb=$('#mOk');okb.textContent=ok;okb.classList.toggle('danger',danger);
+  $('#scrim').classList.add('on');$('#modal').classList.add('on');
+  if(input!==null)setTimeout(()=>{inp.focus();inp.select()},60);
+  modalDone=v=>{$('#modal').classList.remove('on');$('#scrim').classList.remove('on');modalDone=null;res(v)};
+ });
+}
+$('#mOk').onclick=()=>modalDone&&modalDone($('#moIn').hidden?true:$('#moIn').value.trim()||null);
+$('#mNo').onclick=()=>modalDone&&modalDone($('#moIn').hidden?false:null);
+$('#moIn').addEventListener('keydown',e=>{if(e.key==='Enter')$('#mOk').click()});
+$('#scrim').onclick=()=>{if(modalDone)modalDone(null);closeSheet()};
+$('#sheetX').onclick=closeSheet;
+
+/* ---------- library view ---------- */
+const folderOf=id=>folders.find(f=>f.id===id);
+function visible(){
+ let list=view.folder?tracks.filter(t=>t.folder===view.folder):tracks.slice();
+ const q=view.q.toLowerCase();
+ if(q)list=list.filter(t=>t.name.toLowerCase().includes(q));
+ if(sort==='recent')list.sort((a,b)=>b.added-a.added);
+ else if(sort==='title')list.sort((a,b)=>coll.compare(parse(a.name).title,parse(b.name).title));
+ else list.sort((a,b)=>coll.compare(a.name,b.name));
+ return list;
+}
+const EQ='<div class="eq"><i></i><i></i><i></i></div>';
+const NOTE='<svg class="i"><use href="#i-note"/></svg>';
+function render(){
+ const inFolder=view.tab==='folders'&&view.folder;
+ if(inFolder&&!folderOf(view.folder)){view.folder=null;return render()}
+ if(view.tab==='songs')view.folder=null;
+ $('#title').textContent=inFolder?folderOf(view.folder).name:view.tab==='songs'?'Songs':'Folders';
+ $('#back').hidden=!inFolder;$('#fmenu').hidden=!inFolder;
+ $$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===view.tab));
+ $('#sortl').textContent=SORTS[sort];
+ const showSongs=view.tab==='songs'||inFolder;
+ $('#songs').hidden=!showSongs;$('#folders').hidden=showSongs;$('#sortb').hidden=!showSongs;
+ const curId=P.queue[P.qi],playing=!audio.paused;
+ document.body.classList.toggle('playing-now',playing);
+ if(showSongs){
+  const list=visible();
+  $('#songs').innerHTML=list.map(t=>{
+   const p=parse(t.name),cur=t.id===curId,fd=!inFolder&&t.folder?folderOf(t.folder):null;
+   const sub=[p.artist,fd&&fd.name,t.dur>0?fmt(t.dur):'',extOf(t.file).toUpperCase()].filter(Boolean).join(' · ');
+   return `<li class="row${cur?' cur':''}" data-id="${esc(t.id)}"><div class="tile">${cur?EQ:NOTE}</div><div class="txt"><b>${esc(p.title)}</b><span>${esc(sub)}</span></div><button class="more" data-more="${esc(t.id)}" aria-label="Options for ${esc(p.title)}"><svg class="i"><use href="#i-more"/></svg></button></li>`}).join('');
+  $('#acts').hidden=list.length===0;
+  $('#empty').hidden=list.length>0;
+  $('#emptyT').textContent=view.q?'No matches':inFolder?'This folder is empty':'No songs yet';
+  $('#emptyS').textContent=view.q?'Try a different search.':inFolder?'Import here, or move songs in with the ••• menu.':'Import MP3, M4A, WAV, MP4 and more from the Files app.';
+  $('#emptyAdd').hidden=!!view.q;
+ }else{
+  const q=view.q.toLowerCase();
+  const fl=folders.filter(f=>!q||f.name.toLowerCase().includes(q)).sort((a,b)=>coll.compare(a.name,b.name));
+  $('#folders').innerHTML=`<button class="card glass new" data-new="1"><svg class="i"><use href="#i-plus"/></svg><b>New folder</b></button>`+
+   fl.map(f=>{const n=tracks.filter(t=>t.folder===f.id).length;return `<button class="card glass" data-folder="${esc(f.id)}"><svg class="i"><use href="#i-folder"/></svg><div><b>${esc(f.name)}</b><span>${n} song${n===1?'':'s'}</span></div></button>`}).join('');
+  $('#acts').hidden=true;$('#empty').hidden=true;
+ }
+ const total=tracks.reduce((s,t)=>s+(t.size||0),0);
+ $('#foot').textContent=tracks.length?`${tracks.length} song${tracks.length===1?'':'s'} · ${size(total)} saved on this device`:'';
+}
+function setTab(tab){view.tab=tab;view.folder=null;LS.set('tab',tab);window.scrollTo(0,0);render()}
+$$('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+$('#back').onclick=()=>{view.folder=null;render()};
+$('#q').addEventListener('input',e=>{view.q=e.target.value;$('#qx').hidden=!view.q;render()});
+$('#qx').onclick=()=>{$('#q').value='';view.q='';$('#qx').hidden=true;render()};
+$('#sortb').onclick=()=>{sort=ORDER[(ORDER.indexOf(sort)+1)%ORDER.length];LS.set('sort',sort);render();toast('Sorted by '+{name:'name (A–Z)',title:'song title',recent:'recently added'}[sort])};
+
+$('#songs').addEventListener('click',e=>{
+ const m=e.target.closest('[data-more]');if(m)return trackMenu(m.dataset.more);
+ const r=e.target.closest('.row');if(!r)return;
+ unlock();
+ const ids=visible().map(t=>t.id);
+ if(r.dataset.id===P.queue[P.qi]&&P.url){togglePlay();return}
+ startQueue(ids,ids.indexOf(r.dataset.id));
+});
+$('#folders').addEventListener('click',async e=>{
+ const c=e.target.closest('[data-folder]');if(c){view.folder=c.dataset.folder;window.scrollTo(0,0);return render()}
+ if(e.target.closest('[data-new]'))newFolder();
+});
+$('#playall').onclick=()=>{unlock();const ids=visible().map(t=>t.id);if(!ids.length)return;P.shuffle=false;LS.set('shuffle',false);startQueue(ids,0)};
+$('#shufall').onclick=()=>{unlock();const ids=visible().map(t=>t.id);if(!ids.length)return;P.shuffle=true;LS.set('shuffle',true);startQueue(ids,Math.random()*ids.length|0)};
+
+/* ---------- import ---------- */
+const pickFiles=()=>$('#file').click();
+$('#add').onclick=pickFiles;$('#emptyAdd').onclick=pickFiles;
+$('#file').addEventListener('change',async e=>{
+ const files=[...e.target.files];e.target.value='';if(!files.length)return;
+ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(err){}
+ toast(`Importing ${files.length} file${files.length===1?'':'s'}…`);
+ const target=view.tab==='folders'&&view.folder?view.folder:null;
+ let n=0;
+ for(const f of files){
+  const id=uid(),ext=extOf(f.name);
+  const meta={id,name:f.name.replace(/\.[^.]+$/,'')||f.name,file:f.name,type:f.type||TYPES[ext]||'',size:f.size,added:Date.now()+n,folder:target,dur:0};
+  try{
+   const blob=new Blob([await f.arrayBuffer()],{type:meta.type});
+   await tx(['meta','blobs'],'readwrite',t=>{t.objectStore('meta').put(meta);t.objectStore('blobs').put(blob,id)});
+   tracks.push(meta);n++;
+  }catch(err){toast(`Couldn't save ${f.name}${err&&err.name==='QuotaExceededError'?' — storage full':''}`)}
+ }
+ render();toast(`Added ${n} song${n===1?'':'s'}`);
+ probeDurations();
+});
+let probing=false;
+async function probeDurations(){
+ if(probing)return;probing=true;
+ const a=document.createElement('audio');a.preload='metadata';a.muted=true;
+ for(const t of tracks.filter(t=>!t.dur)){
+  const b=await getBlob(t.id).catch(()=>null);if(!b){t.dur=-1;continue}
+  const u=URL.createObjectURL(b);
+  const d=await new Promise(r=>{const to=setTimeout(()=>r(0),6000);a.onloadedmetadata=()=>{clearTimeout(to);r(a.duration)};a.onerror=()=>{clearTimeout(to);r(0)};a.src=u});
+  URL.revokeObjectURL(u);
+  t.dur=d&&isFinite(d)?d:-1;await put('meta',t).catch(()=>{});
+ }
+ a.removeAttribute('src');probing=false;render();
+}
+
+/* ---------- song + folder menus ---------- */
+function trackMenu(id){
+ const t=tracks.find(x=>x.id===id);if(!t)return;
+ sheet(t.name,[
+  {label:'Play next',icon:'i-next2',fn:()=>playNext(id)},
+  {label:t.folder?'Move to another folder':'Add to folder',icon:'i-folder',fn:()=>moveMenu(t)},
+  {label:'Rename',icon:'i-edit',fn:async()=>{const n=await modal('Rename song','Tip: “Artist - Title” shows the artist underneath.',{input:t.name,ok:'Save'});if(n){t.name=n;await put('meta',t);render();if(id===P.queue[P.qi]){setMeta();ui()}}}},
+  {label:'Delete from Pocket',icon:'i-trash',danger:true,fn:()=>deleteTrack(t)}
+ ]);
+}
+function moveMenu(t){
+ sheet('Move “'+parse(t.name).title+'” to',[
+  ...folders.slice().sort((a,b)=>coll.compare(a.name,b.name)).filter(f=>f.id!==t.folder).map(f=>({label:f.name,icon:'i-folder',fn:()=>setFolder(t,f.id)})),
+  ...(t.folder?[{label:'Remove from folder',icon:'i-x',fn:()=>setFolder(t,null)}]:[]),
+  {label:'New folder…',icon:'i-plus',fn:async()=>{const f=await newFolder();if(f)setFolder(t,f.id)}}
+ ]);
+}
+async function setFolder(t,fid){t.folder=fid;await put('meta',t);render();toast(fid?'Moved to '+folderOf(fid).name:'Removed from folder')}
+async function newFolder(){
+ const n=await modal('New folder','',{input:'',ok:'Create'});if(!n)return null;
+ const f={id:uid(),name:n,created:Date.now()};await put('folders',f);folders.push(f);render();return f;
+}
+async function deleteTrack(t){
+ const ok=await modal('Delete this song?',`“${t.name}” will be removed from Pocket. The original in Files isn't touched.`,{ok:'Delete',danger:true});if(!ok)return;
+ await tx(['meta','blobs'],'readwrite',x=>{x.objectStore('meta').delete(t.id);x.objectStore('blobs').delete(t.id)});
+ tracks=tracks.filter(x=>x.id!==t.id);
+ const curId=P.queue[P.qi];
+ P.base=P.base.filter(x=>x!==t.id);
+ if(curId===t.id){audio.pause();audio.removeAttribute('src');audio.load();if(P.url)URL.revokeObjectURL(P.url);P.url=null;P.queue=P.queue.filter(x=>x!==t.id);P.qi=Math.min(P.qi,P.queue.length-1);P.resume=0}
+ else{P.queue=P.queue.filter(x=>x!==t.id);P.qi=P.queue.indexOf(curId)}
+ save();ui();render();
+}
+$('#fmenu').onclick=()=>{
+ const f=folderOf(view.folder);if(!f)return;
+ sheet(f.name,[
+  {label:'Rename folder',icon:'i-edit',fn:async()=>{const n=await modal('Rename folder','',{input:f.name,ok:'Save'});if(n){f.name=n;await put('folders',f);render()}}},
+  {label:'Delete folder',icon:'i-trash',danger:true,fn:async()=>{
+   const ok=await modal('Delete folder?','Songs inside stay in your library.',{ok:'Delete',danger:true});if(!ok)return;
+   const moved=tracks.filter(t=>t.folder===f.id);moved.forEach(t=>t.folder=null);
+   await tx(['meta','folders'],'readwrite',x=>{moved.forEach(t=>x.objectStore('meta').put(t));x.objectStore('folders').delete(f.id)});
+   folders=folders.filter(x=>x.id!==f.id);view.folder=null;render();
+  }}
+ ]);
+};
+
+/* ---------- playback ---------- */
+let unlocked=false;
+function unlock(){ // iOS needs one play() inside a tap before later async play() calls are allowed
+ if(unlocked)return;unlocked=true;
+ if(P.url)return;
+ try{const n=400,b=new ArrayBuffer(44+n),v=new DataView(b),w=(o,s)=>[...s].forEach((c,i)=>v.setUint8(o+i,c.charCodeAt(0)));
+  w(0,'RIFF');v.setUint32(4,36+n,true);w(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,8000,true);v.setUint32(28,8000,true);v.setUint16(32,1,true);v.setUint16(34,8,true);w(36,'data');v.setUint32(40,n,true);for(let i=0;i<n;i++)v.setUint8(44+i,128);
+  audio.src=URL.createObjectURL(new Blob([b],{type:'audio/wav'}));const p=audio.play();p&&p.catch(()=>{});
+ }catch(e){}
+}
+const cur=()=>tracks.find(t=>t.id===P.queue[P.qi]);
+function shuffled(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+function startQueue(ids,start){
+ P.base=ids.slice();
+ if(P.shuffle){const first=ids[start];P.queue=[first,...shuffled(ids.filter((_,i)=>i!==start))];playAt(0)}
+ else{P.queue=ids.slice();playAt(start)}
+}
+let loadSeq=0;
+async function playAt(i,t0=0,autoplay=true){
+ if(i<0||i>=P.queue.length)return;
+ const seq=++loadSeq;P.qi=i;const id=P.queue[i];
+ const blob=await getBlob(id).catch(()=>null);
+ if(seq!==loadSeq)return;
+ if(!blob){toast('That file is missing');return}
+ if(P.url)URL.revokeObjectURL(P.url);
+ P.url=URL.createObjectURL(blob);audio.src=P.url;
+ if(t0>1)audio.addEventListener('loadedmetadata',()=>{try{audio.currentTime=t0}catch(e){}},{once:true});
+ P.resume=0;save();setMeta();ui();render();
+ if(autoplay){try{await audio.play()}catch(e){ui()}}
+}
+function togglePlay(){
+ unlock();
+ if(P.qi<0){const ids=visible().map(t=>t.id);if(ids.length)startQueue(ids,0);return}
+ if(!P.url){playAt(P.qi,P.resume);return}
+ if(audio.paused){const p=audio.play();p&&p.catch(()=>{})}else audio.pause();
+}
+function next(auto){
+ if(P.qi<0)return;
+ if(auto&&P.repeat==='one'){audio.currentTime=0;audio.play().catch(()=>{});return}
+ if(P.qi<P.queue.length-1)playAt(P.qi+1);
+ else if(P.repeat==='all'||!auto){if(P.shuffle&&P.queue.length>1)P.queue=shuffled(P.queue);playAt(0,0,!auto||P.repeat==='all')}
+}
+function prev(){
+ if(P.qi<0)return;
+ if(audio.currentTime>3||P.qi===0){audio.currentTime=0;if(audio.paused&&P.url)audio.play().catch(()=>{});else if(!P.url)playAt(P.qi);return}
+ playAt(P.qi-1);
+}
+function playNext(id){
+ if(P.qi<0){P.base=[id];P.queue=[id];unlock();playAt(0);return}
+ const curId=P.queue[P.qi];
+ P.queue=P.queue.filter(x=>x!==id);P.qi=P.queue.indexOf(curId);
+ P.queue.splice(P.qi+1,0,id);if(!P.base.includes(id))P.base.push(id);
+ save();toast('Playing next');
+}
+function toggleShuffle(){
+ P.shuffle=!P.shuffle;LS.set('shuffle',P.shuffle);
+ const id=P.queue[P.qi];
+ if(id){
+  if(P.shuffle){P.queue=[id,...shuffled(P.queue.filter(x=>x!==id))];P.qi=0}
+  else if(P.base.length){P.queue=P.base.slice();P.qi=Math.max(0,P.queue.indexOf(id))}
+  save();
+ }
+ ui();toast(P.shuffle?'Shuffle on':'Shuffle off');
+}
+function toggleRepeat(){P.repeat={off:'all',all:'one',one:'off'}[P.repeat];LS.set('repeat',P.repeat);ui();toast({off:'Repeat off',all:'Repeat all',one:'Repeat one'}[P.repeat])}
+function save(){LS.set('q',{queue:P.queue,base:P.base,qi:P.qi})}
+
+function setMeta(){
+ const t=cur();if(!t||!ms)return;const p=parse(t.name);
+ try{ms.metadata=new MediaMetadata({title:p.title,artist:p.artist||'Pocket',album:(t.folder&&folderOf(t.folder)||{}).name||'',artwork:[{src:'icon-512.png',sizes:'512x512',type:'image/png'}]})}catch(e){}
+}
+function posState(){
+ if(!ms||!ms.setPositionState)return;
+ const d=audio.duration;if(!isFinite(d)||d<=0)return;
+ try{ms.setPositionState({duration:d,playbackRate:audio.playbackRate||1,position:Math.min(audio.currentTime,d)})}catch(e){}
+}
+if(ms){
+ const h=(a,f)=>{try{ms.setActionHandler(a,f)}catch(e){}};
+ h('play',()=>{if(!P.url)playAt(P.qi,P.resume);else audio.play().catch(()=>{})});
+ h('pause',()=>audio.pause());
+ h('previoustrack',prev);   // AirPods triple-tap, lock screen ⏮
+ h('nexttrack',()=>next(false)); // AirPods double-tap, lock screen ⏭
+ h('seekto',d=>{if(d&&isFinite(d.seekTime)){audio.currentTime=d.seekTime;posState()}});
+ h('seekbackward',null);h('seekforward',null); // leaving these unset makes iOS show skip-track buttons
+ h('stop',()=>audio.pause());
+}
+
+let dragging=false,lastSave=0;
+function ui(){
+ const t=cur();const has=!!t;
+ $('#mini').hidden=!has;document.body.classList.toggle('hasmini',has);
+ const playing=!audio.paused&&!!P.url;
+ $$('.pp use').forEach(u=>u.setAttribute('href',playing?'#i-pause':'#i-play'));
+ $('#np').classList.toggle('playing',playing);
+ document.body.classList.toggle('playing-now',playing);
+ $('#shuf').classList.toggle('on',P.shuffle);
+ $('#rep').classList.toggle('on',P.repeat!=='off');
+ $('#rep use').setAttribute('href',P.repeat==='one'?'#i-rep1':'#i-rep');
+ if(ms)try{ms.playbackState=playing?'playing':'paused'}catch(e){}
+ if(!has)return;
+ const p=parse(t.name);
+ $('#mT').textContent=p.title;$('#mA').textContent=p.artist||(t.dur>0?fmt(t.dur):extOf(t.file).toUpperCase());
+ $('#mTile').innerHTML=playing?EQ:NOTE;$('#mTile').className='tile'+(playing?' live':'');
+ $('#npHead').textContent=t.name;$('#nT').textContent=p.title;$('#nA').textContent=p.artist||'Unknown artist';
+ progress();
+}
+function progress(){
+ const d=audio.duration,c=P.url?audio.currentTime:P.resume;const known=isFinite(d)&&d>0;
+ const t=cur();const dur=known?d:(t&&t.dur>0?t.dur:0);
+ const pct=dur?Math.min(100,c/dur*100):0;
+ $('#mBar').style.width=pct+'%';
+ if(!dragging){$('#seek').value=pct*10;$('#seek').style.setProperty('--p',pct+'%');$('#tCur').textContent=fmt(c)}
+ $('#tDur').textContent=dur?'-'+fmt(dur-c):'0:00';
+}
+audio.addEventListener('play',()=>{ui();render()});
+audio.addEventListener('pause',()=>{ui();render()});
+audio.addEventListener('ended',()=>next(true));
+audio.addEventListener('loadedmetadata',()=>{
+ posState();const t=cur();
+ if(t&&P.url&&isFinite(audio.duration)&&Math.abs((t.dur||0)-audio.duration)>1){t.dur=audio.duration;put('meta',t).catch(()=>{});render()}
+ progress();
+});
+audio.addEventListener('timeupdate',()=>{
+ progress();const now=Date.now();
+ if(now-lastSave>4000&&P.url){lastSave=now;LS.set('t',audio.currentTime);posState()}
+});
+audio.addEventListener('error',()=>{if(P.url&&cur())toast(`Can't play “${parse(cur().name).title}” — format not supported`)});
+const seek=$('#seek');
+seek.addEventListener('input',()=>{dragging=true;const d=audio.duration||(cur()||{}).dur||0;seek.style.setProperty('--p',seek.value/10+'%');$('#tCur').textContent=fmt(seek.value/1000*d)});
+seek.addEventListener('change',()=>{const d=audio.duration;if(isFinite(d)&&P.url)audio.currentTime=seek.value/1000*d;dragging=false;posState();progress()});
+
+$('#mPP').onclick=togglePlay;$('#nPP').onclick=togglePlay;$('#bigPP').onclick=togglePlay;
+$('#mPrev').onclick=()=>{unlock();prev()};$('#nPrev').onclick=()=>{unlock();prev()};
+$('#mNext').onclick=()=>{unlock();next(false)};$('#nNext').onclick=()=>{unlock();next(false)};
+$('#shuf').onclick=toggleShuffle;$('#rep').onclick=toggleRepeat;
+const np=$('#np');
+const openNP=()=>{np.classList.add('open')};
+const closeNP=()=>{np.style.transform='';np.classList.remove('open')};
+$('#mOpen').onclick=openNP;$('#mTile').onclick=openNP;$('#npX').onclick=closeNP;
+$('#npMore').onclick=()=>{const t=cur();if(t)trackMenu(t.id)};
+let y0=null;
+np.addEventListener('touchstart',e=>{if(e.target.closest('input'))return;y0=e.touches[0].clientY},{passive:true});
+np.addEventListener('touchmove',e=>{if(y0==null)return;const dy=e.touches[0].clientY-y0;if(dy>0){np.style.transition='none';np.style.transform=`translateY(${dy}px)`}},{passive:true});
+np.addEventListener('touchend',e=>{if(y0==null)return;const dy=e.changedTouches[0].clientY-y0;y0=null;np.style.transition='';if(dy>120)closeNP();else np.style.transform=''});
+
+document.addEventListener('keydown',e=>{
+ if(e.target.matches('input')||modalDone)return;
+ if(e.key==='ArrowRight'||e.key==='MediaTrackNext'){e.preventDefault();unlock();next(false)}
+ else if(e.key==='ArrowLeft'||e.key==='MediaTrackPrevious'){e.preventDefault();unlock();prev()}
+ else if(e.key===' '||e.key==='MediaPlayPause'){e.preventDefault();togglePlay()}
+ else if(e.key==='Escape'){closeSheet();closeNP()}
+});
+
+/* ---------- start ---------- */
+(async()=>{
+ try{db=await openDB();[tracks,folders]=await Promise.all([getAll('meta'),getAll('folders')])}
+ catch(e){toast('Storage is unavailable in this browser mode')}
+ const s=LS.get('q',null);
+ if(s&&Array.isArray(s.queue)){
+  const ok=new Set(tracks.map(t=>t.id)),curId=s.queue[s.qi];
+  P.queue=s.queue.filter(x=>ok.has(x));P.base=(s.base||[]).filter(x=>ok.has(x));
+  P.qi=P.queue.indexOf(curId);P.resume=P.qi>=0?+LS.get('t',0)||0:0;
+  if(P.qi>=0)setMeta();
+ }
+ ui();render();
+ if(tracks.some(t=>!t.dur))probeDurations();
+})();
+if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
